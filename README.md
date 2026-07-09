@@ -13,6 +13,7 @@ This project helps users:
 - Find `setup.exe`
 - Ask the user whether to start the in-place upgrade
 - Show the recommended upgrade command
+- Show the recommended in-place upgrade command
 - Keep a local log of the process
 
 > This tool does **not** bypass TPM, Secure Boot, CPU, or Microsoft safeguard holds by default.
@@ -122,6 +123,7 @@ C:\Win11-ISO\Windows11.iso
 You can also provide a custom ISO path.
 
 After mounting, the script finds `setup.exe` and asks whether to start the upgrade.
+After download, the script can mount the ISO automatically and show the recommended upgrade command.
 
 ---
 
@@ -176,10 +178,16 @@ The launcher will show this menu:
 9. Let the script download and mount the ISO.
 10. When asked, choose whether to start Windows Setup.
 11. Follow the Windows Setup window.
+[3] Download ISO from a direct Microsoft ISO link
+[4] Exit
+```
 
 ---
 
 ## Manual PowerShell usage
+
+Open PowerShell as Administrator in the project folder.
+
 
 Open PowerShell as Administrator in the project folder.
 
@@ -208,6 +216,17 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Upgrade-Win11-22H2-to-
 ---
 
 ### Mount existing ISO and ask to start upgrade
+### Download ISO from a direct Microsoft ISO link
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Upgrade-Win11-22H2-to-Latest.ps1 -Mode DownloadISO -IsoUrl "PASTE_MICROSOFT_ISO_URL_HERE" -MountAfterDownload
+```
+
+---
+
+## Recommended upgrade command
+
+After the ISO is mounted, the script will show a command like this:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Upgrade-Win11-22H2-to-Latest.ps1 -Mode MountISO -PromptToStartUpgrade
@@ -240,6 +259,17 @@ The exact path will depend on the mounted ISO drive letter, for example:
 ```powershell
 D:\setup.exe /auto upgrade /dynamicupdate enable /eula accept
 ```
+The drive letter may be different on each device.
+
+For example, the mounted ISO may appear as:
+
+```text
+D:
+E:
+F:
+```
+
+Use the drive letter shown by the script.
 
 ---
 
@@ -269,6 +299,7 @@ Always back up important files before attempting a feature upgrade.
 | `OpenIsoPage` | Opens the official Microsoft Windows 11 download page | No |
 | `DownloadISO` | Downloads the ISO to `C:\Win11-ISO`, mounts it, and can start setup after confirmation | Yes |
 | `MountISO` | Mounts an existing ISO and can start setup after confirmation | Yes |
+| `DownloadISO` | Downloads the ISO to `C:\Win11-ISO` and can mount it | Yes |
 | `RepairWU` | Planned mode for future Windows Update repair steps | Not yet |
 
 ---
@@ -312,6 +343,7 @@ Future versions may include:
 - DISM health repair
 - SFC system file check
 - More detailed setup compatibility checks
+- Guided in-place upgrade launcher
 - Progress messages for each repair step
 - Better error handling and exit codes
 - Optional reboot prompt

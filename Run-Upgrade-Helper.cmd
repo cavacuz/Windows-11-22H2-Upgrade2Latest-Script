@@ -27,6 +27,18 @@ echo [3] Download ISO from a direct Microsoft ISO link, mount it, then ask to st
 echo [4] Mount existing downloaded ISO, then ask to start upgrade
 echo [5] Exit
 echo.
+echo [1] Check this PC only
+echo [2] Open official Microsoft Windows 11 ISO download page
+echo [3] Download ISO from a direct Microsoft ISO link
+echo [4] Exit
+echo.
+
+choice /c 1234 /n /m "Select option 1, 2, 3, or 4: "
+
+if errorlevel 4 goto Exit
+if errorlevel 3 goto DownloadISO
+if errorlevel 2 goto OpenIsoPage
+if errorlevel 1 goto CheckOnly
 
 choice /c 12345 /n /m "Select option 1, 2, 3, 4, or 5: "
 
