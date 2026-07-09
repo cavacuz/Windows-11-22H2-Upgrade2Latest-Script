@@ -10,10 +10,28 @@ This project helps users:
 - Open the official Microsoft Windows 11 ISO download page
 - Download a Windows 11 ISO from a direct Microsoft ISO link
 - Mount the downloaded ISO
+- Find `setup.exe`
+- Ask the user whether to start the in-place upgrade
+- Show the recommended upgrade command
 - Show the recommended in-place upgrade command
 - Keep a local log of the process
 
 > This tool does **not** bypass TPM, Secure Boot, CPU, or Microsoft safeguard holds by default.
+
+---
+
+## What happens after the ISO is downloaded?
+
+After the ISO is downloaded, the helper can:
+
+1. Mount the ISO automatically
+2. Find `setup.exe`
+3. Show the in-place upgrade command
+4. Ask the user whether to start Windows Setup
+
+The script does **not** silently force the upgrade.
+
+The user must confirm before Windows Setup starts.
 
 ---
 
@@ -88,6 +106,23 @@ The ISO is downloaded to:
 C:\Win11-ISO\Windows11.iso
 ```
 
+After download, the script can mount the ISO automatically, find `setup.exe`, and ask whether to start the upgrade.
+
+---
+
+### Mount existing ISO mode
+
+The `MountISO` mode mounts an existing ISO file.
+
+By default, it looks here:
+
+```text
+C:\Win11-ISO\Windows11.iso
+```
+
+You can also provide a custom ISO path.
+
+After mounting, the script finds `setup.exe` and asks whether to start the upgrade.
 After download, the script can mount the ISO automatically and show the recommended upgrade command.
 
 ---
@@ -123,6 +158,26 @@ The launcher will show this menu:
 ```text
 [1] Check this PC only
 [2] Open official Microsoft Windows 11 ISO download page
+[3] Download ISO from a direct Microsoft ISO link, mount it, then ask to start upgrade
+[4] Mount existing downloaded ISO, then ask to start upgrade
+[5] Exit
+```
+
+---
+
+## Recommended workflow
+
+1. Run the helper.
+2. Choose option `1` to check the PC.
+3. Choose option `2` to open the official Microsoft Windows 11 ISO page.
+4. Select the Windows 11 ISO and language on Microsoft’s website.
+5. Copy the direct ISO link.
+6. Return to the helper.
+7. Choose option `3`.
+8. Paste the direct Microsoft ISO link.
+9. Let the script download and mount the ISO.
+10. When asked, choose whether to start Windows Setup.
+11. Follow the Windows Setup window.
 [3] Download ISO from a direct Microsoft ISO link
 [4] Exit
 ```
@@ -130,6 +185,9 @@ The launcher will show this menu:
 ---
 
 ## Manual PowerShell usage
+
+Open PowerShell as Administrator in the project folder.
+
 
 Open PowerShell as Administrator in the project folder.
 
@@ -149,6 +207,15 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Upgrade-Win11-22H2-to-
 
 ---
 
+### Download ISO, mount it, and ask to start upgrade
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Upgrade-Win11-22H2-to-Latest.ps1 -Mode DownloadISO -IsoUrl "PASTE_MICROSOFT_ISO_URL_HERE" -MountAfterDownload -PromptToStartUpgrade
+```
+
+---
+
+### Mount existing ISO and ask to start upgrade
 ### Download ISO from a direct Microsoft ISO link
 
 ```powershell
@@ -162,9 +229,36 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Upgrade-Win11-22H2-to-
 After the ISO is mounted, the script will show a command like this:
 
 ```powershell
-D:\setup.exe /auto upgrade /dynamicupdate enable /eula accept
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Upgrade-Win11-22H2-to-Latest.ps1 -Mode MountISO -PromptToStartUpgrade
 ```
 
+---
+
+### Mount a custom ISO path and ask to start upgrade
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Upgrade-Win11-22H2-to-Latest.ps1 -Mode MountISO -IsoPath "D:\Downloads\Windows11.iso" -PromptToStartUpgrade
+```
+
+---
+
+## Upgrade command used
+
+When the user confirms, the script starts Windows Setup with:
+
+```powershell
+setup.exe /auto upgrade /dynamicupdate enable /eula accept
+```
+
+This is an in-place upgrade command.
+
+It is intended to keep files, apps, and settings while upgrading Windows.
+
+The exact path will depend on the mounted ISO drive letter, for example:
+
+```powershell
+D:\setup.exe /auto upgrade /dynamicupdate enable /eula accept
+```
 The drive letter may be different on each device.
 
 For example, the mounted ISO may appear as:
@@ -203,6 +297,8 @@ Always back up important files before attempting a feature upgrade.
 |---|---|---|
 | `CheckOnly` | Checks version, admin status, build, edition, and disk space | No |
 | `OpenIsoPage` | Opens the official Microsoft Windows 11 download page | No |
+| `DownloadISO` | Downloads the ISO to `C:\Win11-ISO`, mounts it, and can start setup after confirmation | Yes |
+| `MountISO` | Mounts an existing ISO and can start setup after confirmation | Yes |
 | `DownloadISO` | Downloads the ISO to `C:\Win11-ISO` and can mount it | Yes |
 | `RepairWU` | Planned mode for future Windows Update repair steps | Not yet |
 
@@ -211,7 +307,7 @@ Always back up important files before attempting a feature upgrade.
 ## Requirements
 
 - Windows 11
-- Administrator rights for check, download, and mount modes
+- Administrator rights for check, download, mount, and setup modes
 - PowerShell 5.1 or newer
 - Internet connection
 - At least 30 GB free disk space recommended
@@ -239,21 +335,6 @@ Always back up important files before attempting a feature upgrade.
 
 ---
 
-## Recommended workflow
-
-1. Run the helper.
-2. Choose option `1` to check the PC.
-3. Choose option `2` to open the official Microsoft Windows 11 ISO page.
-4. Select the Windows 11 ISO and language on Microsoft’s website.
-5. Copy the direct ISO link.
-6. Return to the helper.
-7. Choose option `3`.
-8. Paste the direct Microsoft ISO link.
-9. Let the script download and mount the ISO.
-10. Run the recommended `setup.exe` command shown by the script.
-
----
-
 ## Planned features
 
 Future versions may include:
@@ -261,6 +342,7 @@ Future versions may include:
 - Windows Update component reset mode
 - DISM health repair
 - SFC system file check
+- More detailed setup compatibility checks
 - Guided in-place upgrade launcher
 - Progress messages for each repair step
 - Better error handling and exit codes

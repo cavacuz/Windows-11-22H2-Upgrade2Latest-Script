@@ -6,8 +6,8 @@
 
 .DESCRIPTION
     This script helps users check the current Windows version, open the official Microsoft
-    Windows 11 ISO download page, download a Microsoft ISO from a direct ISO URL, and mount
-    the ISO after download.
+    Windows 11 ISO download page, download a Microsoft ISO from a direct ISO URL, mount
+    the ISO, and optionally start the in-place upgrade.
 
     It does not bypass TPM, Secure Boot, CPU, or Microsoft safeguard holds.
 
@@ -15,18 +15,23 @@
     CheckOnly    - Checks Windows version, admin status, build, edition, and disk space.
     OpenIsoPage  - Opens the official Microsoft Windows 11 download page.
     DownloadISO  - Downloads a Windows 11 ISO from a direct Microsoft ISO URL.
+    MountISO     - Mounts an existing ISO and optionally starts setup.exe.
     RepairWU     - Planned mode for future Windows Update repair steps.
 #>
 
 param(
-    [ValidateSet("CheckOnly", "OpenIsoPage", "DownloadISO", "RepairWU")]
+    [ValidateSet("CheckOnly", "OpenIsoPage", "DownloadISO", "MountISO", "RepairWU")]
     [string]$Mode = "CheckOnly",
 
     [string]$IsoUrl = "",
 
     [string]$IsoDirectory = "C:\Win11-ISO",
 
-    [switch]$MountAfterDownload
+    [string]$IsoPath = "",
+
+    [switch]$MountAfterDownload,
+
+    [switch]$PromptToStartUpgrade
 )
 
 $ErrorActionPreference = "Stop"
@@ -96,13 +101,64 @@ function Open-Windows11IsoPage {
     Start-Process $downloadPage
 }
 
+function Start-WindowsSetupUpgrade {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SetupPath,
+
+        [switch]$Prompt
+    )
+
+    if (!(Test-Path $SetupPath)) {
+        throw "setup.exe was not found at $SetupPath"
+    }
+
+    $setupArguments = "/auto upgrade /dynamicupdate enable /eula accept"
+
+    Write-Log "Windows Setup is ready." "Green"
+    Write-Log "Setup path: $SetupPath" "Cyan"
+    Write-Log "Upgrade command:" "Cyan"
+    Write-Log "$SetupPath $setupArguments" "White"
+
+    if ($Prompt) {
+        Write-Host ""
+        Write-Host "This will start the Windows 11 in-place upgrade." -ForegroundColor Yellow
+        Write-Host "Your files and apps should be kept, but you should still have a backup." -ForegroundColor Yellow
+        Write-Host ""
+
+        $answer = Read-Host "Start Windows Setup now? Type Y to start, or anything else to skip"
+
+        if ($answer -notin @("Y", "y", "YES", "Yes", "yes")) {
+            Write-Log "User chose not to start Windows Setup." "Yellow"
+            Write-Log "You can start it later with this command:" "Cyan"
+            Write-Log "$SetupPath $setupArguments" "White"
+            return
+        }
+    }
+
+    Write-Log "Starting Windows Setup..." "Cyan"
+
+    Start-Process `
+        -FilePath $SetupPath `
+        -ArgumentList $setupArguments `
+        -WorkingDirectory (Split-Path $SetupPath)
+
+    Write-Log "Windows Setup was started." "Green"
+    Write-Log "Follow the Windows Setup window to continue the upgrade." "Yellow"
+}
+
 function Mount-WindowsIso {
     param(
         [Parameter(Mandatory = $true)]
         [string]$ImagePath
     )
 
+    if (!(Test-Path $ImagePath)) {
+        throw "ISO file was not found: $ImagePath"
+    }
+
     Write-Log "Mounting ISO..." "Cyan"
+    Write-Log "ISO path: $ImagePath" "White"
 
     $diskImage = Mount-DiskImage -ImagePath $ImagePath -PassThru -ErrorAction Stop
 
@@ -142,15 +198,16 @@ function Mount-WindowsIso {
 
         if (Test-Path $setupPath) {
             Write-Log "Windows Setup found: $setupPath" "Green"
-            Write-Log "Recommended upgrade command:" "Cyan"
-            Write-Log "$setupPath /auto upgrade /dynamicupdate enable /eula accept" "White"
+            return $setupPath
         }
         else {
             Write-Log "WARNING: ISO mounted, but setup.exe was not found at $setupPath" "Yellow"
+            return $null
         }
     }
     else {
         Write-Log "WARNING: ISO was mounted, but no drive letter was detected." "Yellow"
+        return $null
     }
 }
 
@@ -158,7 +215,8 @@ function Download-Windows11Iso {
     param(
         [string]$Url,
         [string]$DestinationDirectory,
-        [switch]$Mount
+        [switch]$Mount,
+        [switch]$PromptSetup
     )
 
     if ([string]::IsNullOrWhiteSpace($Url)) {
@@ -286,7 +344,11 @@ function Download-Windows11Iso {
     }
 
     if ($Mount) {
-        Mount-WindowsIso -ImagePath $destination
+        $setupPath = Mount-WindowsIso -ImagePath $destination
+
+        if ($setupPath) {
+            Start-WindowsSetupUpgrade -SetupPath $setupPath -Prompt:$PromptSetup
+        }
     }
     else {
         Write-Log "MountAfterDownload was not selected. ISO was downloaded but not mounted." "Yellow"
@@ -361,7 +423,20 @@ try {
             Download-Windows11Iso `
                 -Url $IsoUrl `
                 -DestinationDirectory $IsoDirectory `
-                -Mount:$MountAfterDownload
+                -Mount:$MountAfterDownload `
+                -PromptSetup:$PromptToStartUpgrade
+        }
+
+        "MountISO" {
+            if ([string]::IsNullOrWhiteSpace($IsoPath)) {
+                $IsoPath = Join-Path $IsoDirectory "Windows11.iso"
+            }
+
+            $setupPath = Mount-WindowsIso -ImagePath $IsoPath
+
+            if ($setupPath) {
+                Start-WindowsSetupUpgrade -SetupPath $setupPath -Prompt:$PromptToStartUpgrade
+            }
         }
 
         "RepairWU" {
